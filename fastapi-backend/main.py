@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth import router as auth_router
 from user_config import router as user_router
 
+
 app = FastAPI()
 
 # Add CORS middleware
