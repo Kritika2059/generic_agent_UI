@@ -8,22 +8,20 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Dependency directories
-node_modules/
+frontend/node_modules/
 
 # Build output
-dist/
-dist-ssr/
+frontend/dist/
+frontend/dist-ssr/
 
 # Vite cache
 .vite/
 
 # Local env files
-.env
+frontend/.env
 .env.*
 backend/.env
-backend/node_modules/
-fastapi-backend/.env
-fastapi-backend/venv/
+backend/venv/
 
 # TypeScript cache
 *.tsbuildinfo
