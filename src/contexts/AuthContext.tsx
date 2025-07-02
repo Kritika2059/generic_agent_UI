@@ -1,123 +1,109 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
   role: 'user' | 'admin';
 }
 
-// Add interface for user with password (for internal storage)
-interface UserWithPassword extends User {
-  password: string;
+interface AuthResponse {
+  success: boolean;
+  error?: string;
+  user?: {id: number, name: string, email: string, role: string}; 
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (name: string, email: string, password: string) => Promise<AuthResponse>;
   logout: () => void;
   loading: boolean;
+  getAuthHeaders: () => object;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock admin email - you can modify this or make it configurable
-const ADMIN_EMAIL = 'chadgigaa404@gmail.com';
-
-
-// Mock user database - properly typed to include password
-const mockUsers: UserWithPassword[] = [
-  { id: '1', email: ADMIN_EMAIL, password: 'admin123', name: 'Admin User', role: 'admin' },
-  { id: '2', email: 'pandeykritika2059518@gmail.com', password: 'user123', name: 'Regular User', role: 'user' },
-  { id: '3', email: 'Aryal.rebanta@gmail.com', password: 'admin456', name: 'Admin User 2', role: 'admin' },
-];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in (from localStorage)
     const savedUser = localStorage.getItem('auth_user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('auth_token');
+    
+    if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  };
+
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication - replace with actual API call
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      const userData: User = {
-        id: foundUser.id,
-        email: foundUser.email,
-        name: foundUser.name,
-        role: foundUser.role
-      };
-      
-      setUser(userData);
-      localStorage.setItem('auth_user', JSON.stringify(userData));
+    try {
+      const res = await fetch('http://localhost:8000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
       setLoading(false);
-      return { success: true };
-    } else {
+
+      if (data.success) {
+        setUser(data.user);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+        localStorage.setItem('auth_token', data.token); // Store JWT token
+        return { success: true };
+      } else {
+        return { success: false, error: data.error || 'Login failed' };
+      }
+    } catch (err) {
       setLoading(false);
-      return { success: false, error: 'Invalid email or password' };
+      return { success: false, error: 'Network error' };
     }
   };
 
-  const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signup = async (name: string, email: string, password: string): Promise<AuthResponse> => {
     setLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if user already exists
-    const existingUser = mockUsers.find(u => u.email === email);
-    if (existingUser) {
+    try {
+      const res = await fetch('http://localhost:8000/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await res.json();
       setLoading(false);
-      return { success: false, error: 'User with this email already exists' };
+
+      if (data.success) {
+        return { 
+          success: true, 
+          user: {
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            role: data.user.role // Include role from response
+          }
+        };
+      } else {
+        return { success: false, error: data.error || 'Signup failed' };
+      }
+    } catch (err) {
+      setLoading(false);
+      return { success: false, error: 'Network error' };
     }
-    
-    // Determine role based on email
-    const role: 'user' | 'admin' = email === ADMIN_EMAIL ? 'admin' : 'user';
-    
-    // Create new user with password for storage
-    const newUserWithPassword: UserWithPassword = {
-      id: Date.now().toString(),
-      email,
-      name,
-      role,
-      password
-    };
-    
-    // Add to mock database (in real app, this would be an API call)
-    mockUsers.push(newUserWithPassword);
-    
-    // Create user object without password for state/localStorage
-    const newUser: User = {
-      id: newUserWithPassword.id,
-      email: newUserWithPassword.email,
-      name: newUserWithPassword.name,
-      role: newUserWithPassword.role
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('auth_user', JSON.stringify(newUser));
-    setLoading(false);
-    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token'); // Remove JWT token
   };
 
   const value = {
@@ -125,7 +111,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     signup,
     logout,
-    loading
+    loading,
+    getAuthHeaders
   };
 
   return (

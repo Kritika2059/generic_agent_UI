@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LoginForm from './Auth/LoginForm';
 import SignupForm from './Auth/SignupForm';
+import PlatformSetup from './Auth/PlatformSetup';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
 }
 
+type AuthState = 'login' | 'signup' | 'platformSetup';
+
 const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   const { user, loading, logout } = useAuth();
-  const [isSignup, setIsSignup] = useState(false);
+  const [authState, setAuthState] = useState<AuthState>('login');
+  const [signupUserData, setSignupUserData] = useState<{id: string, name: string, email: string} | null>(null);
 
   if (loading) {
     return (
@@ -20,13 +24,56 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   }
 
   if (!user) {
-    return isSignup ? (
-      <SignupForm onSwitchToLogin={() => setIsSignup(false)} />
-    ) : (
-      <LoginForm onLogin={(userData) => {
-    // handle login success if needed
-  }} onSwitchToSignup={() => setIsSignup(true)} />    
-    );
+    // Handle signup success - move to platform setup
+    const handleSignupSuccess = (userData: {id: string, name: string, email: string}) => {
+      console.log('Signup success, user data:', userData); // Add this for debugging
+      setSignupUserData(userData);
+      setAuthState('login');
+    };
+
+    // Handle platform setup completion - move to login
+    const handlePlatformSetupComplete = async (platformData: { [key: string]: string }) => {
+      try {
+        // Platform data is already saved to the database in PlatformSetup component
+        // Just redirect to login
+        setAuthState('login');
+        setSignupUserData(null);
+      } catch (error) {
+        console.error('Platform setup completion error:', error);
+        // Handle error if needed
+      }
+    };
+
+    // Render based on current auth state
+    switch (authState) {
+      case 'signup':
+        return (
+          <SignupForm 
+            onSwitchToLogin={() => setAuthState('login')} 
+            onSignupSuccess={handleSignupSuccess}
+          />
+        );
+      
+      case 'platformSetup':
+        return (
+          <PlatformSetup 
+            userId={signupUserData?.id} // Pass the user ID
+            onComplete={handlePlatformSetupComplete}
+            onBack={() => setAuthState('signup')}
+            onNavigateToLogin={() => setAuthState('login')} 
+          />
+        );
+      
+      default: // 'login'
+        return (
+          <LoginForm 
+            onLogin={(userData) => {
+              // handle login success if needed
+            }} 
+            onSwitchToSignup={() => setAuthState('signup')} 
+          />
+        );
+    }
   }
 
   // User is authenticated, show the main app with header

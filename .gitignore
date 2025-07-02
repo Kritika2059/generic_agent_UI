@@ -20,6 +20,10 @@ dist-ssr/
 # Local env files
 .env
 .env.*
+backend/.env
+backend/node_modules/
+fastapi-backend/.env
+fastapi-backend/venv/
 
 # TypeScript cache
 *.tsbuildinfo

@@ -90,7 +90,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onSwitchToSignup }) => {
         </div>
       </div>
 
-      
       <div className="w-1/2 hidden md:flex items-center justify-center p-4">
         <div className="relative h-[760px] w-full rounded-2xl overflow-hidden shadow-lg">
           <img

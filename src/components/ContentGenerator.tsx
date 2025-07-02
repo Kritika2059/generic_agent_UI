@@ -37,97 +37,127 @@ const ContentGenerator = () => {
 
   const { user } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setIsLoading(true);
 
-    try {
-      const formData = new FormData(e.currentTarget);
-      const webhookUrl = formData.get('webhookUrl') as string;
+  try {
+    const formData = new FormData(e.currentTarget);
+    
+    // Use the state value instead of getting from form data
+    const webhookUrlToSend = webhookUrl;
 
-      // Determine the apiType based on the radio button selection
-      const apiType = useCustomAPI ? 'custom' : 'default';
-      formData.append('apiType', apiType);
+    // Determine the apiType based on the radio button selection
+    const apiType = useCustomAPI ? 'custom' : 'default';
+    formData.append('apiType', apiType);
+    
+    // Append the webhook URL from state
+    formData.append('webhookUrl', webhookUrlToSend);
 
-      // Determine the customApiType based on the dropdown selection
-      if (useCustomAPI && selectedAPI) {
-        const customApiType = selectedAPI;
-        formData.append('customApiType', customApiType);
-      }
-
-      // Append OpenAI API key if it is provided
-      if (openAIApiKey) {
-        formData.append('openAIApiKey', openAIApiKey);
-      }
-
-      // Append Gemini API key if it is provided
-      if (geminiApiKey) {
-        formData.append('geminiApiKey', geminiApiKey);
-      }
-
-      // Log the webhook URL to ensure it's correct
-      console.log('Webhook URL:', webhookUrl);
-
-
-      formData.append('whatsapp', selectedPlatforms.has('whatsapp') ? 'true' : 'false');
-      formData.append('linkedin_post', selectedPlatforms.has('linkedin_post') ? 'true' : 'false');
-      formData.append('discord', selectedPlatforms.has('discord') ? 'true' : 'false');
-      formData.append('slack', selectedPlatforms.has('slack') ? 'true' : 'false');
-      formData.append('facebook', selectedPlatforms.has('facebook') ? 'true' : 'false');
-      formData.append('instagram', selectedPlatforms.has('instagram') ? 'true' : 'false');
-      formData.append('twitter', selectedPlatforms.has('twitter') ? 'true' : 'false');
-      formData.append('pdf', selectedPlatforms.has('pdf') ? 'true' : 'false');
-
-      // Append all selected files from the documents state
-      const validFiles = documents.filter(doc => doc.file);
-      validFiles.forEach((doc, index) => {
-        // Append files if necessary
-      });
-
-      // Append document type based on whether any file was uploaded
-      const documentType = validFiles.length > 0 ? 'file' : '';
-      formData.append('documentType', documentType);
-
-      // Log FormData contents for debugging
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
-
-      // Append multiple URLs
-      urls.forEach(url => {
-        if (url.trim() !== '') {
-          formData.append('urls[]', url);
-        }
-      });
-
-      formData.append('timestamp', new Date().toISOString());
-
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Success! 🎉",
-          description: "Content generation and publishing initiated successfully!",
-        });
-        (e.target as HTMLFormElement).reset();
-        setSelectedPlatforms(new Set());
-        setDocuments([{ id: Date.now(), file: null }]); // Reset documents to initial single input
-      } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to send data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    // Determine the customApiType based on the dropdown selection
+    if (useCustomAPI && selectedAPI) {
+      const customApiType = selectedAPI;
+      formData.append('customApiType', customApiType);
     }
-  };
+
+    // Append OpenAI API key if it is provided
+    if (openAIApiKey) {
+      formData.append('openAIApiKey', openAIApiKey);
+    }
+
+    // Append Gemini API key if it is provided
+    if (geminiApiKey) {
+      formData.append('geminiApiKey', geminiApiKey);
+    }
+
+    // Log the webhook URL to ensure it's correct
+    console.log('Webhook URL:', webhookUrlToSend);
+
+    formData.append('whatsapp', selectedPlatforms.has('whatsapp') ? 'true' : 'false');
+    formData.append('linkedin_post', selectedPlatforms.has('linkedin_post') ? 'true' : 'false');
+    formData.append('discord', selectedPlatforms.has('discord') ? 'true' : 'false');
+    formData.append('slack', selectedPlatforms.has('slack') ? 'true' : 'false');
+    formData.append('facebook', selectedPlatforms.has('facebook') ? 'true' : 'false');
+    formData.append('instagram', selectedPlatforms.has('instagram') ? 'true' : 'false');
+    formData.append('twitter', selectedPlatforms.has('twitter') ? 'true' : 'false');
+    formData.append('pdf', selectedPlatforms.has('pdf') ? 'true' : 'false');
+
+    // Append all selected files from the documents state
+    const validFiles = documents.filter(doc => doc.file);
+    validFiles.forEach((doc, index) => {
+      if (doc.file) {
+        formData.append(`documents`, doc.file);
+      }
+    });
+
+    // Append document type based on whether any file was uploaded
+    const documentType = validFiles.length > 0 ? 'file' : '';
+    formData.append('documentType', documentType);
+
+    // Log FormData contents for debugging
+    for (let [key, value] of formData.entries()) {
+      console.log(key, value);
+    }
+
+    // Append multiple URLs
+    urls.forEach(url => {
+      if (url.trim() !== '') {
+        formData.append('urls[]', url);
+      }
+    });
+
+    formData.append('timestamp', new Date().toISOString());
+
+    const response = await fetch(webhookUrlToSend, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Get filename from headers (if set), fallback to default
+    const disposition = response.headers.get("Content-Disposition");
+    let fileName = "summary.txt";
+    if (disposition && disposition.includes("filename=")) {
+      const match = disposition.match(/filename="?(.+)"?/);
+      if (match?.[1]) {
+        fileName = match[1];
+      }
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    // Show success message after download
+    toast({
+      title: "Success! 🎉",
+      description: "Your summary has been downloaded successfully!",
+    });
+
+    // Reset form and state
+    (e.target as HTMLFormElement).reset();
+    setSelectedPlatforms(new Set());
+    setDocuments([{ id: Date.now(), file: null }]);
+
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: `Failed to send data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const [urls, setUrls] = useState(['']);
 
@@ -177,6 +207,21 @@ const ContentGenerator = () => {
     setDocuments(documents.map((doc) => (doc.id === id ? { ...doc, file } : doc)));
   };
 
+  const [webhookUrl, setWebhookUrl] = useState('https://n8n.shivautomation.com/webhook/e117d06b-e9eb-47f9-989f-d89c065299ec');
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleEditClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleInputChange = (e) => {
+    setWebhookUrl(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    setIsEditing(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-5xl mx-auto">
@@ -210,14 +255,26 @@ const ContentGenerator = () => {
                 <Label htmlFor="webhookUrl" className="text-sm font-semibold text-slate-700">
                   n8n Webhook URL
                 </Label>
-                <Input
-                  type="url"
-                  id="webhookUrl"
-                  name="webhookUrl"
-                  placeholder="https://n8n.mydomain.com/webhook/my-webhook-id"
-                  required
-                  className="h-12 bg-white/50 border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 transition-all"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="url"
+                    id="webhookUrl"
+                    name="webhookUrl"
+                    value={webhookUrl}
+                    onChange={handleInputChange}
+                    onBlur={handleInputBlur}
+                    disabled={!isEditing}
+                    placeholder="https://n8n.mydomain.com/webhook/my-webhook-id"
+                    required
+                    className="h-12 bg-white/50 border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 transition-all"
+                  />
+                  {!isEditing && (
+                    <Button onClick={handleEditClick} className="h-12">
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500">Production URL of the summarizer agent is set by default.</p>
               </div>
 
               <Separator />
@@ -532,3 +589,4 @@ const ContentGenerator = () => {
 };
 
 export default ContentGenerator;
+
