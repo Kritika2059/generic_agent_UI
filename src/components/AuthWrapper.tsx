@@ -28,7 +28,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     const handleSignupSuccess = (userData: {id: string, name: string, email: string}) => {
       console.log('Signup success, user data:', userData); // Add this for debugging
       setSignupUserData(userData);
-      setAuthState('platformSetup');
+      setAuthState('login');
     };
 
     // Handle platform setup completion - move to login
